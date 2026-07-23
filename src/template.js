@@ -1,8 +1,16 @@
 import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import { CDN_PREFIX, SUPPORTED_LANG } from './constant'
+import relativeTime from 'dayjs/plugin/relativeTime.js'
+import { CDN_PREFIX, SUPPORTED_LANG } from './constant.js'
+import { APP_CSS, clientApp } from './assets.js'
 
 dayjs.extend(relativeTime)
+
+const escapeHTML = value => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 const SWITCHER = (text, open, className = '') => `
 <span class="opt-desc">${text}</span>
@@ -46,20 +54,25 @@ const HTML = ({ lang, title, content, ext = {}, tips, isEdit, showPwPrompt }) =>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${title} — Cloud Notepad</title>
+    <title>${escapeHTML(title)} — Cloud Notepad</title>
     <link href="${CDN_PREFIX}/favicon.ico" rel="shortcut icon" type="image/ico" />
-    <link href="${CDN_PREFIX}/css/app.min.css" rel="stylesheet" media="screen" />
+    <style>${APP_CSS}</style>
 </head>
 <body>
     <div class="note-container">
         <div class="stack">
             <div class="layer_1">
                 <div class="layer_2">
-                    <div class="layer_3">
-                        ${tips ? `<div class="tips">${tips}</div>` : ''}
-                        <textarea id="contents" class="contents ${isEdit ? '' : 'hide'}" spellcheck="true" placeholder="${SUPPORTED_LANG[lang].emptyPH}">${content}</textarea>
+                    <div class="layer_3 ${isEdit && ext.mode === 'md' ? 'markdown-mode md-mobile-edit' : ''} ${!isEdit ? 'read-mode' : ''}">
+                        ${tips ? `<div class="tips">${escapeHTML(tips)}</div>` : ''}
+                        ${(isEdit && ext.mode === 'md') ? `
+                        <div class="mobile-md-tabs" role="group" aria-label="Markdown view">
+                            <button class="mobile-md-tab active" type="button" data-md-view="edit" aria-pressed="true">Edit</button>
+                            <button class="mobile-md-tab" type="button" data-md-view="preview" aria-pressed="false">Preview</button>
+                        </div>` : ''}
+                        <textarea id="contents" class="contents editor ${ext.mode === 'md' ? 'monospace' : ''} ${isEdit ? '' : 'hide'}" spellcheck="true" placeholder="${SUPPORTED_LANG[lang].emptyPH}">${escapeHTML(content)}</textarea>
                         ${(isEdit && ext.mode === 'md') ? '<div class="divide-line"></div>' : ''}
-                        ${tips || (isEdit && ext.mode !== 'md') ? '' : `<div id="preview-${ext.mode || 'plain'}" class="contents"></div>`}
+                        ${tips || (isEdit && ext.mode !== 'md') ? '' : `<div id="preview-${ext.mode || 'plain'}" class="contents preview ${ext.mode === 'md' ? 'markdown-preview' : 'plain-preview'}"></div>`}
                     </div>
                 </div>
             </div>
@@ -71,7 +84,7 @@ const HTML = ({ lang, title, content, ext = {}, tips, isEdit, showPwPrompt }) =>
     ${(ext.mode === 'md' || ext.share) ? `<script src="${CDN_PREFIX}/js/purify.min.js"></script>` : ''}
     ${ext.mode === 'md' ? `<script src="${CDN_PREFIX}/js/marked.min.js"></script>` : ''}
     <script src="${CDN_PREFIX}/js/clip.min.js"></script>
-    <script src="${CDN_PREFIX}/js/app.min.js"></script>
+    <script>const __name = fn => fn;(${clientApp})()</script>
     ${showPwPrompt ? '<script>passwdPrompt()</script>' : ''}
 </body>
 </html>

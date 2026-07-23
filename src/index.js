@@ -2,8 +2,8 @@ import dayjs from 'dayjs'
 import { Router } from 'itty-router'
 import Cookies from 'cookie'
 import jwt from '@tsndr/cloudflare-worker-jwt'
-import { queryNote, MD5, checkAuth, genRandomStr, returnPage, returnJSON, saltPw, getI18n } from './helper'
-import { SECRET } from './constant'
+import { queryNote, MD5, checkAuth, genRandomStr, returnPage, returnJSON, saltPw, getI18n } from './helper.js'
+import { SECRET } from './constant.js'
 
 // init
 const router = Router()
@@ -208,7 +208,7 @@ router.post('/:path', async request => {
 
 router.all('*', (request) => {
     const lang = getI18n(request)
-    returnPage('Page404', { lang, title: '404' })
+    return returnPage('Page404', { lang, title: '404' })
 })
 
 addEventListener('fetch', event => {

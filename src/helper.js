@@ -1,6 +1,6 @@
 import jwt from '@tsndr/cloudflare-worker-jwt'
-import * as TEMPL from './template'
-import { SALT, SECRET, SUPPORTED_LANG } from './constant'
+import * as TEMPL from './template.js'
+import { SALT, SECRET, SUPPORTED_LANG } from './constant.js'
 
 // generate random string
 export const genRandomStr = n => {
@@ -76,6 +76,6 @@ export async function queryNote(key) {
 export function getI18n(request) {
     const DEFAULT_LANG = 'en'
     const al = request.headers.get('Accept-Language') || DEFAULT_LANG
-    const acceptList = al.split(',').map(lang => lang.split(';')[0].trim())
+    const acceptList = al.split(',').map(lang => lang.split(';')[0].trim().split('-')[0])
     return acceptList.find(lang => Object.keys(SUPPORTED_LANG).includes(lang)) || DEFAULT_LANG
 }

@@ -836,6 +836,9 @@ export function clientApp() {
     const SUPPORTED_LANG = {
         en: {
             err: 'Error',
+            networkErr: 'Network request failed. Please check your connection and try again.',
+            saving: 'Saving...',
+            savePending: 'Save failed. Changes are still in this browser and will retry automatically.',
             pepw: 'Please enter password.',
             pwcnbe: 'Password is empty!',
             enpw: 'Enter a new password(Keeping it empty will remove the current password)',
@@ -845,6 +848,9 @@ export function clientApp() {
         },
         zh: {
             err: '出错了',
+            networkErr: '网络请求失败，请检查网络后重试',
+            saving: '正在保存...',
+            savePending: '保存失败，当前修改仍在浏览器中，将自动重试',
             pepw: '请输入密码',
             pwcnbe: '密码不能为空！',
             enpw: '输入新密码（留空可清除当前密码）',
@@ -861,6 +867,12 @@ export function clientApp() {
     }
 
     const formatError = err => {
+        if (err instanceof Error) {
+            if (err.name === 'TypeError' && /Failed to fetch|NetworkError|Load failed/i.test(err.message)) {
+                return getI18n('networkErr')
+            }
+            return err.message || String(err)
+        }
         if (typeof err !== 'string') return String(err)
         try {
             return JSON.parse(err)
@@ -885,6 +897,15 @@ export function clientApp() {
         const $loading = document.querySelector('#loading')
         if (!$loading) return
         $loading.className = state || ''
+        if (state === 'saving') {
+            $loading.title = getI18n('saving')
+            return
+        }
+        if (state === 'error') {
+            $loading.title = getI18n('savePending')
+            return
+        }
+        $loading.removeAttribute('title')
     }
 
     const sanitizeHtml = html => {
@@ -1020,14 +1041,29 @@ export function clientApp() {
 
         let pendingValue = null
         let saving = false
+        let retryTimer = null
+
+        const scheduleSaveRetry = () => {
+            if (retryTimer !== null) return
+            retryTimer = window.setTimeout(() => {
+                retryTimer = null
+                flushSave()
+            }, 3000)
+        }
 
         const flushSave = () => {
             if (!$textarea || saving || pendingValue === null) return
+            if (retryTimer !== null) {
+                window.clearTimeout(retryTimer)
+                retryTimer = null
+            }
 
             const content = pendingValue
             pendingValue = null
             saving = true
             setSavingState('saving')
+            let shouldRetry = false
+            let shouldWaitForUser = false
 
             window.fetch('', {
                 method: 'POST',
@@ -1039,16 +1075,27 @@ export function clientApp() {
                 .then(res => res.json())
                 .then(res => {
                     if (res.err !== 0) {
+                        pendingValue = $textarea.value
+                        shouldWaitForUser = true
                         setSavingState('error')
                         errHandle(res.msg)
                     }
                 })
                 .catch(err => {
+                    pendingValue = $textarea.value
+                    shouldRetry = true
                     setSavingState('error')
-                    errHandle(err)
+                    console.warn(getI18n('savePending'), err)
                 })
                 .finally(() => {
                     saving = false
+                    if (shouldRetry) {
+                        scheduleSaveRetry()
+                        return
+                    }
+                    if (shouldWaitForUser) {
+                        return
+                    }
                     if (pendingValue !== null) {
                         flushSave()
                     } else if (!document.querySelector('#loading.error')) {
@@ -1065,6 +1112,13 @@ export function clientApp() {
                 renderMarkdown($previewMd, $textarea.value)
                 pendingValue = $textarea.value
                 debouncedSave()
+            })
+
+            window.addEventListener('online', flushSave)
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    flushSave()
+                }
             })
         }
 
